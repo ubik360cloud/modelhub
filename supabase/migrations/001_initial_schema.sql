@@ -168,7 +168,7 @@ CREATE TABLE goals (
 CREATE TABLE tips (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category    TEXT NOT NULL CHECK (category IN (
-                'iluminacion', 'camara', 'engagement', 'bio',
+                'iluminacion', 'camara', 'obs_tecnico', 'engagement', 'bio',
                 'thumbnail', 'tokens', 'mentalidad', 'general'
               )),
   content     TEXT NOT NULL,
