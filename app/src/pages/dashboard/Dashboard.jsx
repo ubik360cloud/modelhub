@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import { TrendingUp, Clock, Target, Zap, Calendar, ChevronRight } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useEarningsStore } from '../../store/earningsStore'
-import { todayISO, currentMonthRange, formatUSD, monthLabel } from '../../lib/utils'
+import { useGoalsStore } from '../../store/goalsStore'
+import { calculateGoal } from '../../lib/goalCalculator'
+import { todayISO, currentMonthRange, formatUSD, formatCOP, monthLabel } from '../../lib/utils'
 import PageWrapper from '../../components/ui/PageWrapper'
 import Card from '../../components/ui/Card'
 import Badge from '../../components/ui/Badge'
@@ -51,10 +53,12 @@ export default function Dashboard() {
   const earningsLoading = useEarningsStore((s) => s.loading)
   const fetchEarnings = useEarningsStore((s) => s.fetchEarnings)
 
+  const goals      = useGoalsStore((s) => s.goals)
+  const fetchGoals = useGoalsStore((s) => s.fetchGoals)
+
   useEffect(() => {
-    if (user && earnings.length === 0 && !earningsLoading) {
-      fetchEarnings(user.id)
-    }
+    if (user && earnings.length === 0 && !earningsLoading) fetchEarnings(user.id)
+    if (user && goals.length === 0) fetchGoals(user.id)
   }, [user])
 
   const today = todayISO()
@@ -77,6 +81,22 @@ export default function Dashboard() {
   )
 
   const currentMonth = monthLabel(today)
+
+  const activeGoal = useMemo(
+    () => goals.find((g) => !g.is_completed) ?? null,
+    [goals]
+  )
+
+  const goalProjection = useMemo(() => {
+    if (!activeGoal) return null
+    return calculateGoal({
+      target_amount:          activeGoal.target_amount,
+      currency:               activeGoal.currency,
+      savings_pct:            activeGoal.savings_pct,
+      avg_monthly_income_usd: activeGoal.manual_income ?? profile?.monthly_income_usd ?? 0,
+      current_saved:          activeGoal.current_saved ?? 0,
+    })
+  }, [activeGoal, profile])
 
   return (
     <PageWrapper>
@@ -117,8 +137,8 @@ export default function Dashboard() {
         <StatCard
           icon={Target}
           label="Meta del mes"
-          value="—"
-          sub="Sin meta activa"
+          value={activeGoal ? `${goalProjection?.pct_complete ?? 0}%` : '—'}
+          sub={activeGoal ? activeGoal.name : 'Sin meta activa'}
           iconColor="text-[#E8B4B8]"
           iconBg="bg-[#E8B4B8]/10"
         />
@@ -167,19 +187,49 @@ export default function Dashboard() {
               </Button>
             </Link>
           </div>
-          <div className="flex flex-col items-center gap-3 py-4">
-            <div className="w-10 h-10 rounded-full bg-[#E8B4B8]/10 flex items-center justify-center">
-              <Target size={18} className="text-[#E8B4B8]" strokeWidth={1.75} />
+
+          {activeGoal && goalProjection ? (
+            <div>
+              <p className="text-[#F5F0E8] text-sm font-medium mb-1 truncate">{activeGoal.name}</p>
+              <p className="text-[#C9A96E] font-semibold text-lg mb-3">
+                {activeGoal.currency === 'COP'
+                  ? formatCOP(activeGoal.target_amount)
+                  : formatUSD(activeGoal.target_amount)}
+              </p>
+              {/* Progress bar */}
+              <div className="mb-3">
+                <div className="flex justify-between text-xs text-[#6B7280] mb-1.5">
+                  <span>Progreso</span>
+                  <span>{goalProjection.pct_complete}%</span>
+                </div>
+                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#C9A96E] to-[#E8B4B8]"
+                    style={{ width: `${goalProjection.pct_complete}%` }}
+                  />
+                </div>
+              </div>
+              {goalProjection.months_to_complete != null && (
+                <p className="text-[#6B7280] text-xs">
+                  {goalProjection.months_to_complete} mes{goalProjection.months_to_complete !== 1 ? 'es' : ''} estimados
+                </p>
+              )}
             </div>
-            <p className="text-[#6B7280] text-sm text-center">
-              No tienes metas activas
-            </p>
-            <Link to="/goals">
-              <Button variant="secondary" size="sm">
-                Crear meta
-              </Button>
-            </Link>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <div className="w-10 h-10 rounded-full bg-[#E8B4B8]/10 flex items-center justify-center">
+                <Target size={18} className="text-[#E8B4B8]" strokeWidth={1.75} />
+              </div>
+              <p className="text-[#6B7280] text-sm text-center">
+                No tienes metas activas
+              </p>
+              <Link to="/goals">
+                <Button variant="secondary" size="sm">
+                  Crear meta
+                </Button>
+              </Link>
+            </div>
+          )}
         </Card>
       </div>
 

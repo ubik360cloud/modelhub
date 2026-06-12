@@ -8,6 +8,7 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import Dashboard from './pages/dashboard/Dashboard'
 import Earnings from './pages/earnings/Earnings'
+import Goals from './pages/goals/Goals'
 
 // ── Placeholder pages (replaced step by step) ────────────────────────────────
 
@@ -47,7 +48,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/earnings"  element={<Earnings />} />
-            <Route path="/goals"     element={<Placeholder name="Mis Metas" />} />
+            <Route path="/goals"     element={<Goals />} />
             <Route path="/schedule"  element={<Placeholder name="Horario" />} />
             <Route path="/tips"      element={<Placeholder name="Tips" />} />
             <Route path="/forum"     element={<Placeholder name="Foro" />} />
