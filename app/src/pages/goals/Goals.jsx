@@ -142,7 +142,7 @@ export default function Goals() {
 
       {/* Modal — create / edit */}
       <Modal
-        isOpen={showForm}
+        open={showForm}
         onClose={() => setShowForm(false)}
         title={editingGoal ? 'Editar meta' : 'Nueva meta'}
       >
