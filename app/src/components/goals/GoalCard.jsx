@@ -1,5 +1,6 @@
 import { Home, Car, Plane, GraduationCap, Star, CheckCircle, Pencil, Trash2 } from 'lucide-react'
 import { calculateGoal } from '../../lib/goalCalculator'
+import { useSettingsStore } from '../../store/settingsStore'
 import { formatCOP, formatUSD } from '../../lib/utils'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
@@ -13,7 +14,8 @@ const TYPE_CONFIG = {
 }
 
 export default function GoalCard({ goal, monthlyIncomeUSD = 0, onEdit, onComplete, onDelete, confirmDeleteId, setConfirmDeleteId }) {
-  const cfg = TYPE_CONFIG[goal.type] ?? TYPE_CONFIG.other
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate)
+  const cfg  = TYPE_CONFIG[goal.type] ?? TYPE_CONFIG.other
   const Icon = cfg.icon
 
   const projection = calculateGoal({
@@ -22,6 +24,7 @@ export default function GoalCard({ goal, monthlyIncomeUSD = 0, onEdit, onComplet
     savings_pct:            goal.savings_pct,
     avg_monthly_income_usd: goal.manual_income ?? monthlyIncomeUSD,
     current_saved:          goal.current_saved ?? 0,
+    exchange_rate:          exchangeRate,
   })
 
   const targetDisplay = goal.currency === 'COP'

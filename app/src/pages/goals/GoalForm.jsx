@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Home, Car, Plane, GraduationCap, Star } from 'lucide-react'
 import { useGoalsStore } from '../../store/goalsStore'
-import { calculateGoal, USD_TO_COP } from '../../lib/goalCalculator'
+import { useSettingsStore } from '../../store/settingsStore'
+import { calculateGoal } from '../../lib/goalCalculator'
 import { formatCOP, formatUSD } from '../../lib/utils'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
@@ -25,8 +26,9 @@ const EMPTY = {
 }
 
 export default function GoalForm({ goal, userId, profileIncomeUSD = 0, onSuccess, onCancel }) {
-  const addGoal    = useGoalsStore((s) => s.addGoal)
-  const updateGoal = useGoalsStore((s) => s.updateGoal)
+  const addGoal      = useGoalsStore((s) => s.addGoal)
+  const updateGoal   = useGoalsStore((s) => s.updateGoal)
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate)
 
   const isEdit = Boolean(goal)
 
@@ -64,6 +66,7 @@ export default function GoalForm({ goal, userId, profileIncomeUSD = 0, onSuccess
       currency:               form.currency,
       savings_pct:            form.savings_pct,
       avg_monthly_income_usd: incomeUSD,
+      exchange_rate:          exchangeRate,
     })
   }, [form.target_amount, form.currency, form.savings_pct, incomeUSD])
 

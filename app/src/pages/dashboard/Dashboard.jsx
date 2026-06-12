@@ -4,6 +4,7 @@ import { TrendingUp, Clock, Target, Zap, Calendar, ChevronRight } from 'lucide-r
 import { useAuth } from '../../hooks/useAuth'
 import { useEarningsStore } from '../../store/earningsStore'
 import { useGoalsStore } from '../../store/goalsStore'
+import { useSettingsStore } from '../../store/settingsStore'
 import { calculateGoal } from '../../lib/goalCalculator'
 import { todayISO, currentMonthRange, formatUSD, formatCOP, monthLabel } from '../../lib/utils'
 import PageWrapper from '../../components/ui/PageWrapper'
@@ -53,8 +54,9 @@ export default function Dashboard() {
   const earningsLoading = useEarningsStore((s) => s.loading)
   const fetchEarnings = useEarningsStore((s) => s.fetchEarnings)
 
-  const goals      = useGoalsStore((s) => s.goals)
-  const fetchGoals = useGoalsStore((s) => s.fetchGoals)
+  const goals        = useGoalsStore((s) => s.goals)
+  const fetchGoals   = useGoalsStore((s) => s.fetchGoals)
+  const exchangeRate = useSettingsStore((s) => s.exchangeRate)
 
   useEffect(() => {
     if (user && earnings.length === 0 && !earningsLoading) fetchEarnings(user.id)
@@ -95,8 +97,9 @@ export default function Dashboard() {
       savings_pct:            activeGoal.savings_pct,
       avg_monthly_income_usd: activeGoal.manual_income ?? profile?.monthly_income_usd ?? 0,
       current_saved:          activeGoal.current_saved ?? 0,
+      exchange_rate:          exchangeRate,
     })
-  }, [activeGoal, profile])
+  }, [activeGoal, profile, exchangeRate])
 
   return (
     <PageWrapper>
