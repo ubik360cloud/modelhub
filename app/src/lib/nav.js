@@ -16,11 +16,8 @@ export function getNavItems(profile) {
 
   if (profile.role === 'admin') {
     return [
-      { label: 'Usuarios',   path: '/admin',          icon: Users         },
-      { label: 'Tips',       path: '/admin/tips',      icon: Lightbulb     },
-      { label: 'Foro',       path: '/admin/forum',     icon: MessageSquare },
-      { label: 'Métricas',   path: '/admin/metrics',   icon: BarChart2     },
-      { label: 'Estudios',   path: '/admin/studios',   icon: Building2     },
+      { label: 'Administración', path: '/admin',   icon: Building2 },
+      { label: 'Perfil',         path: '/profile', icon: User      },
     ]
   }
 

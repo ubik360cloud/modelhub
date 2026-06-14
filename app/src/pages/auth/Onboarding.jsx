@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { Check, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Check, ChevronRight, ChevronLeft, FileText as FileIcon } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -417,66 +417,85 @@ function ModelOnboarding({ user, fetchProfile }) {
   )
 }
 
-// ── Studio onboarding (1 step) ───────────────────────────────────────────────
+// ── Studio application form ───────────────────────────────────────────────────
 
 function StudioOnboarding({ user, fetchProfile }) {
   const navigate = useNavigate()
-  const [studioName, setStudioName] = useState('')
-  const [city, setCity] = useState('')
-  const [address, setAddress] = useState('')
-  const [phone, setPhone] = useState('')
-  const [website, setWebsite] = useState('')
-  const [roomName, setRoomName] = useState('')
-  const [roomDescription, setRoomDescription] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [form, setForm] = useState({
+    company_name: '', company_email: '', address: '',
+    phone: '', manager_name: '', manager_contact: '',
+  })
+  const [camaraFile, setCamaraFile]   = useState(null)
+  const [cedulaFile, setCedulaFile]   = useState(null)
+  const [loading, setLoading]         = useState(false)
+  const [error, setError]             = useState('')
+
+  const set = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    if (!camaraFile || !cedulaFile) {
+      setError('Debes subir los dos documentos requeridos.')
+      return
+    }
+
     setLoading(true)
     try {
-      const slug = studioName
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '')
+      // Upload documents to private storage
+      const uploadFile = async (file, name) => {
+        const path = `${user.id}/${name}.pdf`
+        const { error: upErr } = await supabase.storage
+          .from('studio-documents')
+          .upload(path, file, { upsert: true })
+        if (upErr) throw upErr
+        return path
+      }
 
-      // Insert studio
-      const { data: studio, error: studioError } = await supabase
-        .from('studios')
-        .insert({
-          coordinator_id: user.id,
-          name: studioName,
-          slug,
-          city,
-          address,
-          phone,
-          website: website.trim() || null,
-          is_active: true,
-        })
-        .select()
-        .single()
-      if (studioError) throw studioError
+      const [camaraPath, cedulaPath] = await Promise.all([
+        uploadFile(camaraFile, 'camara_comercio'),
+        uploadFile(cedulaFile, 'cedula'),
+      ])
 
-      // Insert first room
-      const { error: roomError } = await supabase.from('rooms').insert({
-        studio_id: studio.id,
-        name: roomName,
-        description: roomDescription.trim() || null,
-        is_active: true,
+      // Insert application record
+      const { error: appErr } = await supabase.from('studio_applications').insert({
+        user_id:              user.id,
+        company_name:         form.company_name.trim(),
+        company_email:        form.company_email.trim(),
+        address:              form.address.trim(),
+        phone:                form.phone.trim(),
+        manager_name:         form.manager_name.trim(),
+        manager_contact:      form.manager_contact.trim(),
+        camara_comercio_path: camaraPath,
+        cedula_path:          cedulaPath,
+        status:               'pending',
       })
-      if (roomError) throw roomError
+      if (appErr) throw appErr
 
-      // Complete onboarding
-      const { error: profileError } = await supabase
+      // Mark profile as studio_pending + onboarding done
+      const { error: profErr } = await supabase
         .from('profiles')
-        .update({ onboarding_done: true })
+        .update({ role: 'studio_pending', onboarding_done: true })
         .eq('id', user.id)
-      if (profileError) throw profileError
+      if (profErr) throw profErr
+
+      // Send confirmation email (best-effort)
+      fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: form.company_email,
+          subject: 'Hemos recibido tu solicitud en ModelHub',
+          html: `<p>Hola ${form.manager_name},</p>
+                 <p>Hemos recibido tu solicitud de registro para <strong>${form.company_name}</strong>.</p>
+                 <p>Nuestro equipo la revisará en las próximas 24–48 horas hábiles y te notificaremos a este correo.</p>
+                 <p>Puedes revisar el estado de tu solicitud en <a href="https://app.modelhub.studio">app.modelhub.studio</a>.</p>`,
+        }),
+      }).catch(() => {})
 
       await fetchProfile(user.id)
-      navigate('/schedule')
+      navigate('/pending')
     } catch (err) {
       setError(err.message || 'Ocurrió un error. Intenta de nuevo.')
     } finally {
@@ -486,15 +505,15 @@ function StudioOnboarding({ user, fetchProfile }) {
 
   return (
     <PageShell>
-      <div className="card-glass p-8">
+      <div className="card-glass p-6 sm:p-8">
         <h2 className="font-heading text-xl text-[#F5F0E8] font-normal mb-1">
-          Configura tu estudio
+          Solicitud de registro de estudio
         </h2>
         <p className="text-[#6B7280] text-sm mb-6">
-          Puedes actualizar estos datos en cualquier momento.
+          Solo trabajamos con estudios legalmente constituidos. Tu solicitud será revisada por nuestro equipo.
         </p>
 
-        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-400 text-sm">
               {error}
@@ -503,44 +522,26 @@ function StudioOnboarding({ user, fetchProfile }) {
 
           <div>
             <label className="block text-[#F5F0E8] text-sm font-medium mb-1.5">
-              Nombre del estudio
+              Razón social / Nombre del estudio
             </label>
-            <input
-              type="text"
-              value={studioName}
-              onChange={(e) => setStudioName(e.target.value)}
-              required
-              className="input-base"
-              placeholder="Mi Estudio"
-            />
+            <input type="text" value={form.company_name} onChange={set('company_name')}
+              required className="input-base" placeholder="Mi Estudio S.A.S." />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-[#F5F0E8] text-sm font-medium mb-1.5">
-                Ciudad
+                Correo de la empresa
               </label>
-              <input
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                required
-                className="input-base"
-                placeholder="Medellín"
-              />
+              <input type="email" value={form.company_email} onChange={set('company_email')}
+                required className="input-base" placeholder="info@miestudio.com" />
             </div>
             <div>
               <label className="block text-[#F5F0E8] text-sm font-medium mb-1.5">
                 Teléfono
               </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                className="input-base"
-                placeholder="+57 300 000 0000"
-              />
+              <input type="tel" value={form.phone} onChange={set('phone')}
+                required className="input-base" placeholder="+57 300 000 0000" />
             </div>
           </div>
 
@@ -548,73 +549,82 @@ function StudioOnboarding({ user, fetchProfile }) {
             <label className="block text-[#F5F0E8] text-sm font-medium mb-1.5">
               Dirección
             </label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              required
-              className="input-base"
-              placeholder="Calle 10 # 43-20"
-            />
+            <input type="text" value={form.address} onChange={set('address')}
+              required className="input-base" placeholder="Calle 10 # 43-20, Medellín" />
           </div>
 
-          <div>
-            <label className="block text-[#F5F0E8] text-sm font-medium mb-1.5">
-              Sitio web{' '}
-              <span className="text-[#6B7280] font-normal">(opcional)</span>
-            </label>
-            <input
-              type="url"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              className="input-base"
-              placeholder="https://miestudio.com"
-            />
-          </div>
-
-          {/* First room */}
-          <div className="pt-2 border-t border-[rgba(255,255,255,0.08)]">
-            <p className="text-[#F5F0E8] text-sm font-medium mb-4">
-              Primera sala
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[#F5F0E8] text-sm font-medium mb-1.5">
-                  Nombre de la sala
-                </label>
-                <input
-                  type="text"
-                  value={roomName}
-                  onChange={(e) => setRoomName(e.target.value)}
-                  required
-                  className="input-base"
-                  placeholder="Sala 1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[#F5F0E8] text-sm font-medium mb-1.5">
-                  Descripción{' '}
-                  <span className="text-[#6B7280] font-normal">(opcional)</span>
-                </label>
-                <textarea
-                  value={roomDescription}
-                  onChange={(e) => setRoomDescription(e.target.value)}
-                  rows={2}
-                  className="input-base resize-none"
-                  placeholder="Equipamiento, capacidad, notas..."
-                />
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[#F5F0E8] text-sm font-medium mb-1.5">
+                Nombre del representante legal
+              </label>
+              <input type="text" value={form.manager_name} onChange={set('manager_name')}
+                required className="input-base" placeholder="Nombre completo" />
+            </div>
+            <div>
+              <label className="block text-[#F5F0E8] text-sm font-medium mb-1.5">
+                Contacto del representante
+              </label>
+              <input type="text" value={form.manager_contact} onChange={set('manager_contact')}
+                required className="input-base" placeholder="Correo o celular" />
             </div>
           </div>
+
+          {/* Document uploads */}
+          <div className="pt-2 border-t border-white/[0.06]">
+            <p className="text-[#F5F0E8] text-sm font-medium mb-3">Documentos requeridos</p>
+            <div className="space-y-3">
+              {[
+                {
+                  label: 'Certificado Cámara de Comercio',
+                  file: camaraFile,
+                  setter: setCamaraFile,
+                  id: 'camara',
+                },
+                {
+                  label: 'Cédula del representante legal',
+                  file: cedulaFile,
+                  setter: setCedulaFile,
+                  id: 'cedula',
+                },
+              ].map(({ label, file, setter, id }) => (
+                <div key={id}>
+                  <label className="block text-[#6B7280] text-xs mb-1.5">{label} (PDF, máx. 10 MB)</label>
+                  <label
+                    htmlFor={id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                      file
+                        ? 'border-[#C9A96E]/50 bg-[#C9A96E]/8'
+                        : 'border-white/8 hover:border-white/20 bg-white/4'
+                    }`}
+                  >
+                    <FileIcon size={16} className={file ? 'text-[#C9A96E]' : 'text-[#6B7280]'} />
+                    <span className={`text-sm truncate ${file ? 'text-[#C9A96E]' : 'text-[#6B7280]'}`}>
+                      {file ? file.name : 'Seleccionar archivo PDF'}
+                    </span>
+                    <input
+                      id={id}
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      onChange={(e) => setter(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-[#6B7280] text-xs leading-relaxed">
+            Al enviar esta solicitud confirmas que la información es veraz y que el estudio opera dentro del marco legal colombiano.
+          </p>
 
           <button
             type="submit"
             disabled={loading}
             className="btn-gold-filled w-full h-11"
           >
-            {loading ? 'Guardando...' : 'Comenzar'}
+            {loading ? 'Enviando solicitud...' : 'Enviar solicitud'}
           </button>
         </form>
       </div>

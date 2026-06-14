@@ -40,6 +40,11 @@ export default function ProtectedRoute() {
 
   if (!profile.onboarding_done) return <Navigate to="/onboarding" replace />
 
+  // Studios awaiting approval see only the pending screen
+  if (profile.role === 'studio_pending' && location.pathname !== '/pending') {
+    return <Navigate to="/pending" replace />
+  }
+
   // Admins can only access /admin/* and /profile
   if (
     profile.role === 'admin' &&

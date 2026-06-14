@@ -11,6 +11,8 @@ import Earnings from './pages/earnings/Earnings'
 import Goals from './pages/goals/Goals'
 import Schedule from './pages/schedule/Schedule'
 import Profile from './pages/profile/Profile'
+import PendingApproval from './pages/auth/PendingApproval'
+import Admin from './pages/admin/Admin'
 
 // ── Placeholder pages (replaced step by step) ────────────────────────────────
 
@@ -39,9 +41,10 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* Public routes */}
-        <Route path="/login"           element={<Login />} />
-        <Route path="/register"        element={<Register />} />
-        <Route path="/onboarding"      element={<Onboarding />} />
+        <Route path="/login"            element={<Login />} />
+        <Route path="/register"         element={<Register />} />
+        <Route path="/onboarding"       element={<Onboarding />} />
+        <Route path="/pending"          element={<PendingApproval />} />
         <Route path="/forgot-password"  element={<ForgotPassword />} />
         <Route path="/reset-password"   element={<ResetPassword />} />
 
@@ -55,7 +58,7 @@ export default function App() {
             <Route path="/tips"      element={<Placeholder name="Tips" />} />
             <Route path="/forum"     element={<Placeholder name="Foro" />} />
             <Route path="/profile"   element={<Profile />} />
-            <Route path="/admin"         element={<Placeholder name="Administración" />} />
+            <Route path="/admin"         element={<Admin />} />
             <Route path="/admin/tips"    element={<Placeholder name="Tips (admin)" />} />
             <Route path="/admin/forum"   element={<Placeholder name="Foro (admin)" />} />
             <Route path="/admin/metrics" element={<Placeholder name="Métricas" />} />
