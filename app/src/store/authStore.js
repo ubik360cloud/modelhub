@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
 const useAuthStore = create((set, get) => {
-  // Bootstrap: read session from Supabase storage on store creation
   supabase.auth.getSession().then(async ({ data: { session } }) => {
     if (session?.user) {
       set({ user: session.user })
@@ -11,14 +10,11 @@ const useAuthStore = create((set, get) => {
     set({ loading: false })
   })
 
-  // Keep session in sync across all auth events.
-  // IMPORTANT: callback must be synchronous — Supabase awaits it before returning
-  // from signUp/signIn, so any awaited async work here blocks those callers.
   supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
       set({ user: session.user, loading: false })
       if (!get().profile) {
-        get().fetchProfile(session.user.id) // fire-and-forget
+        get().fetchProfile(session.user.id)
       }
     } else if (event === 'SIGNED_OUT') {
       set({ user: null, profile: null, loading: false })
@@ -49,13 +45,47 @@ const useAuthStore = create((set, get) => {
       }
     },
 
+    updateProfile: async (fields) => {
+      const { user } = get()
+      if (!user) return { success: false, error: 'No session' }
+      const { error } = await supabase
+        .from('profiles')
+        .update(fields)
+        .eq('id', user.id)
+      if (error) return { success: false, error: error.message }
+      await get().fetchProfile(user.id)
+      return { success: true }
+    },
+
+    uploadAvatar: async (file) => {
+      const { user } = get()
+      if (!user) return { success: false, error: 'No session' }
+      const ext = file.name.split('.').pop()
+      const path = `${user.id}/avatar.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true })
+      if (uploadError) return { success: false, error: uploadError.message }
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+      const avatarUrl = data.publicUrl + `?t=${Date.now()}`
+      const result = await get().updateProfile({ avatar_url: avatarUrl })
+      return result
+    },
+
+    sendPasswordReset: async () => {
+      const { user } = get()
+      if (!user) return { success: false }
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) return { success: false, error: error.message }
+      return { success: true }
+    },
+
     signIn: async (email, password) => {
       set({ loading: true, error: null })
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
         set({ user: data.user })
         await get().fetchProfile(data.user.id)
@@ -73,33 +103,21 @@ const useAuthStore = create((set, get) => {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            data: {
-              role,
-              display_name: displayName,
-            },
-          },
+          options: { data: { role, display_name: displayName } },
         })
         if (error) throw error
 
-        // Poll until the session cookie is written (max 3 × 500 ms = 1.5 s)
         let session = null
         for (let attempt = 0; attempt < 3; attempt++) {
           const { data: sessionData } = await supabase.auth.getSession()
-          if (sessionData?.session) {
-            session = sessionData.session
-            break
-          }
-          if (attempt < 2) {
-            await new Promise((resolve) => setTimeout(resolve, 500))
-          }
+          if (sessionData?.session) { session = sessionData.session; break }
+          if (attempt < 2) await new Promise((r) => setTimeout(r, 500))
         }
 
         if (session?.user) {
           set({ user: session.user })
           await get().fetchProfile(session.user.id)
         } else {
-          // Email confirmation required — session won't exist yet
           set({ user: data.user })
         }
 

@@ -10,6 +10,7 @@ import Dashboard from './pages/dashboard/Dashboard'
 import Earnings from './pages/earnings/Earnings'
 import Goals from './pages/goals/Goals'
 import Schedule from './pages/schedule/Schedule'
+import Profile from './pages/profile/Profile'
 
 // ── Placeholder pages (replaced step by step) ────────────────────────────────
 
@@ -53,7 +54,7 @@ export default function App() {
             <Route path="/schedule"  element={<Schedule />} />
             <Route path="/tips"      element={<Placeholder name="Tips" />} />
             <Route path="/forum"     element={<Placeholder name="Foro" />} />
-            <Route path="/profile"   element={<Placeholder name="Perfil" />} />
+            <Route path="/profile"   element={<Profile />} />
             <Route path="/admin"         element={<Placeholder name="Administración" />} />
             <Route path="/admin/tips"    element={<Placeholder name="Tips (admin)" />} />
             <Route path="/admin/forum"   element={<Placeholder name="Foro (admin)" />} />

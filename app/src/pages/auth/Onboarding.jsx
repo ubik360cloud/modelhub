@@ -147,6 +147,15 @@ function ModelOnboarding({ user, fetchProfile }) {
       const planStarted = new Date()
       const planEnds = new Date(planStarted.getTime() + 30 * 24 * 60 * 60 * 1000)
 
+      // Convert income to USD if entered in COP (rough conversion using fixed rate;
+      // settingsStore is not available here so use a safe fallback)
+      const USD_FALLBACK = 3490
+      const incomeUSD = income
+        ? incomeCurrency === 'COP'
+          ? parseFloat(income) / USD_FALLBACK
+          : parseFloat(income)
+        : 0
+
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -154,6 +163,7 @@ function ModelOnboarding({ user, fetchProfile }) {
           plan: selectedPlan,
           plan_started_at: planStarted.toISOString(),
           plan_ends_at: planEnds.toISOString(),
+          monthly_income_usd: incomeUSD,
         })
         .eq('id', user.id)
       if (profileError) throw profileError
