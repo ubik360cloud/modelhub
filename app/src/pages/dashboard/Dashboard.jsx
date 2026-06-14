@@ -29,18 +29,19 @@ function getDateLabel() {
   return raw.charAt(0).toUpperCase() + raw.slice(1)
 }
 
-function StatCard({ icon: Icon, label, value, sub, iconColor, iconBg }) {
+function StatCard({ icon: Icon, label, value, sub, sub2, iconColor, iconBg }) {
   return (
-    <Card className="flex items-start gap-4">
+    <Card className="flex items-start gap-3 sm:gap-4">
       <div
-        className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}
+        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg}`}
       >
-        <Icon size={20} className={iconColor} strokeWidth={1.75} />
+        <Icon size={18} className={iconColor} strokeWidth={1.75} />
       </div>
       <div className="min-w-0">
-        <p className="text-[#6B7280] text-xs mb-1">{label}</p>
-        <p className="text-[#F5F0E8] text-xl font-semibold truncate">{value}</p>
-        {sub && <p className="text-[#6B7280] text-xs mt-0.5">{sub}</p>}
+        <p className="text-[#6B7280] text-[10px] sm:text-xs mb-1">{label}</p>
+        <p className="text-[#F5F0E8] text-base sm:text-xl font-semibold truncate">{value}</p>
+        {sub  && <p className="text-[#6B7280] text-[10px] sm:text-xs mt-0.5 truncate">{sub}</p>}
+        {sub2 && <p className="text-[#C9A96E]/70 text-[10px] sm:text-xs mt-0.5 truncate">{sub2}</p>}
       </div>
     </Card>
   )
@@ -50,9 +51,9 @@ export default function Dashboard() {
   const { user, profile } = useAuth()
   const isPremium = profile?.plan === 'premium'
 
-  const earnings = useEarningsStore((s) => s.earnings)
+  const earnings        = useEarningsStore((s) => s.earnings)
   const earningsLoading = useEarningsStore((s) => s.loading)
-  const fetchEarnings = useEarningsStore((s) => s.fetchEarnings)
+  const fetchEarnings   = useEarningsStore((s) => s.fetchEarnings)
 
   const goals        = useGoalsStore((s) => s.goals)
   const fetchGoals   = useGoalsStore((s) => s.fetchGoals)
@@ -65,24 +66,35 @@ export default function Dashboard() {
 
   const today = todayISO()
   const { from: monthFrom, to: monthTo } = currentMonthRange()
+  const currentMonth = monthLabel(today)
 
+  // Today
   const todayUSD = useMemo(
-    () =>
-      earnings
-        .filter((e) => e.date === today && e.currency === 'USD')
-        .reduce((sum, e) => sum + Number(e.amount), 0),
+    () => earnings
+      .filter((e) => e.date === today && e.currency === 'USD')
+      .reduce((s, e) => s + Number(e.amount), 0),
+    [earnings, today]
+  )
+  const todayCOP = useMemo(
+    () => earnings
+      .filter((e) => e.date === today && e.currency === 'COP')
+      .reduce((s, e) => s + Number(e.amount), 0),
     [earnings, today]
   )
 
+  // This month
   const monthUSD = useMemo(
-    () =>
-      earnings
-        .filter((e) => e.date >= monthFrom && e.date <= monthTo && e.currency === 'USD')
-        .reduce((sum, e) => sum + Number(e.amount), 0),
+    () => earnings
+      .filter((e) => e.date >= monthFrom && e.date <= monthTo && e.currency === 'USD')
+      .reduce((s, e) => s + Number(e.amount), 0),
     [earnings, monthFrom, monthTo]
   )
-
-  const currentMonth = monthLabel(today)
+  const monthCOP = useMemo(
+    () => earnings
+      .filter((e) => e.date >= monthFrom && e.date <= monthTo && e.currency === 'COP')
+      .reduce((s, e) => s + Number(e.amount), 0),
+    [earnings, monthFrom, monthTo]
+  )
 
   const activeGoal = useMemo(
     () => goals.find((g) => !g.is_completed) ?? null,
@@ -111,39 +123,39 @@ export default function Dashboard() {
         <p className="text-[#6B7280] text-sm mt-1">{getDateLabel()}</p>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      {/* Stats grid — 2×2 on mobile, 4-col on desktop */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <StatCard
           icon={TrendingUp}
           label="Ganancias hoy"
-          value={todayUSD > 0 ? formatUSD(todayUSD) : '$0'}
-          sub={todayUSD > 0 ? 'USD registrados hoy' : 'Sin registros hoy'}
+          value={todayUSD > 0 ? formatUSD(todayUSD) : (todayCOP > 0 ? '—' : '$0')}
+          sub={todayCOP > 0 ? formatCOP(todayCOP) + ' COP' : (todayUSD > 0 ? 'USD hoy' : 'Sin registros hoy')}
           iconColor="text-emerald-400"
           iconBg="bg-emerald-500/10"
         />
         <StatCard
           icon={TrendingUp}
-          label="Ganancias del mes"
+          label="Mes USD"
           value={monthUSD > 0 ? formatUSD(monthUSD) : '$0'}
           sub={currentMonth}
           iconColor="text-[#C9A96E]"
           iconBg="bg-[#C9A96E]/10"
         />
         <StatCard
-          icon={Clock}
-          label="Turno activo"
-          value="Ninguno"
-          sub="Sin turno en curso"
-          iconColor="text-blue-400"
-          iconBg="bg-blue-500/10"
+          icon={TrendingUp}
+          label="Mes COP"
+          value={monthCOP > 0 ? formatCOP(monthCOP) : '$0'}
+          sub={currentMonth}
+          iconColor="text-[#E8B4B8]"
+          iconBg="bg-[#E8B4B8]/10"
         />
         <StatCard
           icon={Target}
           label="Meta del mes"
           value={activeGoal ? `${goalProjection?.pct_complete ?? 0}%` : '—'}
           sub={activeGoal ? activeGoal.name : 'Sin meta activa'}
-          iconColor="text-[#E8B4B8]"
-          iconBg="bg-[#E8B4B8]/10"
+          iconColor="text-violet-400"
+          iconBg="bg-violet-500/10"
         />
       </div>
 
@@ -199,7 +211,6 @@ export default function Dashboard() {
                   ? formatCOP(activeGoal.target_amount)
                   : formatUSD(activeGoal.target_amount)}
               </p>
-              {/* Progress bar */}
               <div className="mb-3">
                 <div className="flex justify-between text-xs text-[#6B7280] mb-1.5">
                   <span>Progreso</span>
